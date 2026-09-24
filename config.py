@@ -10,7 +10,7 @@ import os
 # Load .env next to this file (no extra package needed). Real env vars win.
 _ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 if os.path.exists(_ENV_FILE):
-    with open(_ENV_FILE, encoding="utf-8") as _fh:
+    with open(_ENV_FILE, encoding="utf-8-sig") as _fh:   # utf-8-sig: ignore Notepad BOM
         for _line in _fh:
             _line = _line.strip()
             if _line and not _line.startswith("#") and "=" in _line:
