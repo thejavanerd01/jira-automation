@@ -41,19 +41,30 @@ def is_done(issue):
 
 
 def sprint_strings(issue):
-    """Raw values of the sprint custom field (one string per sprint)."""
+    """Raw values of the sprint custom field (one entry per sprint)."""
     return issue["fields"].get(config.SPRINT_FIELD) or []
 
 
-def parse_sprint(sprint_text):
+def parse_sprint(sprint_value):
     """
-    Parse one Jira Server sprint string:
+    Read (name, start, end) from one sprint-field entry. Dates are "YYYY-MM-DD" or None.
+
+    Jira returns the sprint field in one of two shapes, both handled here:
+      string (Jira Server / older DC):
         "...Sprint@1a2b[id=5,state=ACTIVE,name=CST1 Q3-S5,startDate=2026-09-08T...,endDate=...]"
-    Returns (name, start "YYYY-MM-DD" or None, end "YYYY-MM-DD" or None).
+      object (newer Data Center / Cloud):
+        {"id": 5, "state": "active", "name": "CST1 Q3-S5", "startDate": "2026-09-08T...", ...}
     """
-    name = re.search(r"name=([^,]+)", sprint_text)
-    start = re.search(r"startDate=([^,\]]+)", sprint_text)
-    end = re.search(r"endDate=([^,\]]+)", sprint_text)
+    if isinstance(sprint_value, dict):
+        def date_of(key):
+            value = sprint_value.get(key)
+            return value[:10] if value else None
+        return sprint_value.get("name"), date_of("startDate"), date_of("endDate")
+
+    text = str(sprint_value)
+    name = re.search(r"name=([^,]+)", text)
+    start = re.search(r"startDate=([^,\]]+)", text)
+    end = re.search(r"endDate=([^,\]]+)", text)
 
     def date_or_none(match):
         return match.group(1)[:10] if match and "null" not in match.group(1) else None

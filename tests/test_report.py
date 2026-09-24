@@ -25,6 +25,13 @@ def test_parse_sprint_handles_missing_dates():
     assert issues.parse_sprint(text) == ("CST1 Q4-S1", None, None)
 
 
+def test_parse_sprint_accepts_object_format():
+    value = {"id": 5, "state": "active", "name": "CST1 Q3-S5",
+             "startDate": "2026-09-08T09:00:00.000Z", "endDate": "2026-09-19T17:00:00.000Z"}
+    assert issues.parse_sprint(value) == ("CST1 Q3-S5", "2026-09-08", "2026-09-19")
+    assert issues.parse_sprint({"name": "Future", "state": "future"}) == ("Future", None, None)
+
+
 def test_missing_story_points_count_as_zero():
     assert issues.story_points(story("A", sp=None)) == 0
 
