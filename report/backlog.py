@@ -9,10 +9,14 @@ Readiness comes from the story's status name (see config.BACKLOG_*_STATUSES):
 ready coverage = Ready SP ÷ average velocity  (sprints of ready work)
 """
 
+import logging
+
 import pandas as pd
 
 import config
 from . import issues as iss
+
+log = logging.getLogger(__name__)
 
 READINESS_STATES = ("Ready", "Needs refinement", "Blocked")
 BACKLOG_COLUMNS = ["Key", "Summary", "Assignee", "Story Points", "Status", "Readiness"]
@@ -46,6 +50,14 @@ def analyse_backlog(backlog_issues, average_velocity):
         for state in READINESS_STATES
     }
     ready_coverage = round(backlog_sp["Ready"] / average_velocity, 1) if average_velocity else 0
+
+    mapping = backlog_df.groupby("Status")["Readiness"].first().to_dict() if not backlog_df.empty else {}
+    log.debug("Backlog status -> readiness: %s", mapping)
+    if not backlog_df.empty and backlog_sp["Ready"] == 0:
+        log.warning("No backlog story counts as Ready. Statuses seen: %s. Add the ready ones to "
+                    "BACKLOG_READY_STATUSES in config.py.", sorted(mapping))
+    log.info("Backlog: %d stories, %s, ready coverage %s sprints (avg velocity %s)",
+             len(backlog_df), {k: v for k, v in backlog_sp.items()}, ready_coverage, average_velocity)
 
     backlog_summary_df = pd.DataFrame([
         {"Metric": "Refined Stories", "Value": int((backlog_df["Readiness"] == "Ready").sum())},

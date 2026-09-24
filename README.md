@@ -22,6 +22,7 @@ Jira REST API ──► jira_client.py ──► report/ ──► dashboard.py 
 | `jira_client.py` | `jira_search(jql)`: POSTs JQL to `/rest/api/2/search/` with a bearer token and returns all pages |
 | `ppt_export.py` | `build_deck(ctx)`: builds the 5-slide deck with native, editable PowerPoint charts |
 | `config.py` | Squads, sprint lists, quarters, backlog status names. Reads connection settings from `.env` |
+| `log_setup.py` | Logging to the terminal and `logs/squad-pulse.log` (see section 9) |
 | `.env.example` | Template for `.env` (host, token, custom field IDs) |
 | `requirements.txt` | Python packages |
 | `tests/` | Unit tests that run without Jira: `python -m pytest -q` |
@@ -154,7 +155,7 @@ python -m report.diagnose CST1
 It checks the connection, looks up the correct `STORY_POINTS_FIELD` /
 `SPRINT_FIELD` ids, confirms the sprint name (and lists the real names if yours
 doesn't match), compares `members` with the sprint's actual assignees, and shows
-the raw sprint field with the dates it read. See also section 9.
+the raw sprint field with the dates it read. See also sections 9 (logs) and 10.
 
 ### 4.2 Start the dashboard
 
@@ -293,7 +294,52 @@ Team changes: update `members` for the squad.
 
 ---
 
-## 9. Troubleshooting
+## 9. Logs
+
+Every run writes to the terminal and to **`logs/squad-pulse.log`** (rotated at
+5 MB, last 3 kept). Set the detail level in `.env`:
+
+```ini
+LOG_LEVEL=INFO     # default: one line per Jira call and per report step
+LOG_LEVEL=DEBUG    # plus every JQL query, each page, and how every story was counted
+# LOG_FILE=none    # terminal only
+```
+
+At **INFO** you see, for each report:
+```
+INFO  report          Report start: squad=CST1 sprint='CST1 Q3-S5' history=[...]
+INFO  jira_client     Jira search -> 13 issues, 2 page(s), 240 ms | project = CST AND ...
+INFO  report.sprint   Sprint 'CST1 Q3-S5' dates from Jira (CST-1032): 2026-09-08 → 2026-09-19
+INFO  report.sprint   Sprint: 13 stories, committed 45 SP, delivered 39 SP, spillover 6 SP ...
+INFO  report.backlog  Backlog: 13 stories, {'Ready': 20.0, ...}, ready coverage 0.7 sprints
+INFO  report          Report done: squad=CST1 sprint='CST1 Q3-S5' in 1.2 s
+```
+
+At **DEBUG** you also see why a number is what it is, one line per story:
+```
+DEBUG report.sprint   CST-1033   5 SP  Done   resolved=2026-09-19 -> DELIVERED (Dev 1)
+DEBUG report.sprint   CST-1036   5 SP  Done   resolved=2026-09-22 -> SPILLOVER (after 2026-09-19)
+DEBUG report.sprint   CST-1041   3 SP  In Progress resolved=None -> OPEN (counts toward committed only)
+```
+
+**Warnings** point at data or config problems while the report still runs:
+- stories with no story points
+- stories in a Done status with no resolution date
+- resolved stories whose status isn't in `DONE_STATUSES`
+- a backlog where no status maps to Ready
+
+**Errors** (a failed Jira call, or the dashboard showing "Could not load")
+are logged with the full traceback and Jira's response.
+
+The bearer token is never written to the logs.
+
+---
+
+## 10. Troubleshooting
+
+First look at `logs/squad-pulse.log`. The ERROR and WARNING lines usually
+name the cause.
+
 
 | Symptom | Cause and fix |
 |---|---|
@@ -313,7 +359,7 @@ Team changes: update `members` for the squad.
 
 ---
 
-## 10. Notes
+## 11. Notes
 
 - The report is for team planning and delivery transparency, not individual
   performance ranking (this line also appears on every slide).

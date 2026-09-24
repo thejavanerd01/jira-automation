@@ -17,10 +17,15 @@ section, and returns a flat dict. See CONTRIBUTING.md for how to add to it.
       quarter.py   quarterly burndown
 """
 
+import logging
+import time
+
 import config
 from jira_client import jira_search
 
 from . import backlog, history, queries, quarter, sprint
+
+log = logging.getLogger(__name__)
 
 
 def generate_report(squad_name, sprint_name=None, search=jira_search, today=None):
@@ -35,6 +40,8 @@ def generate_report(squad_name, sprint_name=None, search=jira_search, today=None
     squad = config.SQUADS[squad_name]
     selected = sprint_name or squad["sprints"][-1]
     earlier = history.previous_sprints(squad["sprints"], selected, config.HISTORY_SPRINTS)
+    started = time.perf_counter()
+    log.info("Report start: squad=%s sprint='%s' history=%s", squad_name, selected, earlier)
 
     # ── 1. Fetch from Jira ────────────────────────────────────────────────
     sprint_issues = search(queries.sprint_stories(squad, selected))["issues"]
@@ -62,6 +69,9 @@ def generate_report(squad_name, sprint_name=None, search=jira_search, today=None
     # ── 5. Quarter ────────────────────────────────────────────────────────
     quarter_df, quarter_summary = quarter.quarterly_burndown(
         squad, quarter_candidates, end, today=today)
+
+    log.info("Report done: squad=%s sprint='%s' in %.1f s", squad_name, selected,
+             time.perf_counter() - started)
 
     return {
         # selected sprint

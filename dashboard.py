@@ -13,9 +13,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import logging
+
 import config
+from log_setup import setup_logging
 from ppt_export import build_deck
 from report import generate_report
+
+setup_logging()
+log = logging.getLogger("dashboard")
 
 ACCENT, BLUE, LIGHT_BLUE = "#E3C84A", "#4472C4", "#A9C4EB"
 ORANGE, GREEN, TAN, RED, GREY, INK = "#ED7D31", "#4E8B5F", "#D9925B", "#C0504D", "#A6A6A6", "#2B2B2B"
@@ -100,6 +106,7 @@ with h4:
 try:
     r = load(squad, sprint)
 except Exception as exc:
+    log.exception("Could not load %s / %s", squad, sprint)
     st.error(f"Could not load {squad} · {sprint} from Jira.\n\n{exc}")
     st.stop()
 

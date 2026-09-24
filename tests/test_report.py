@@ -174,3 +174,23 @@ def test_generate_report_end_to_end(monkeypatch):
     assert r["average_velocity"] == 3.0
     assert r["ready_coverage"] == 4.0                 # 12 ready SP / 3 avg velocity
     assert r["quarter_summary"]["scope_sp"] == 24     # 18 in S5 + 6 in S4
+
+
+# ── logging ──────────────────────────────────────────────────────────────────
+def test_logs_explain_each_story_and_warn_about_missing_points(caplog):
+    items = sample_sprint() + [story("E", sp=None, status="Done", resolved="2026-09-11")]
+    with caplog.at_level("DEBUG", logger="report"):
+        sprint.analyse_sprint(items, "2026-09-19")
+    text = caplog.text
+    assert "A" in text and "DELIVERED" in text
+    assert "SPILLOVER" in text and "OPEN" in text
+    assert "no story points" in text and "E" in text
+
+
+def test_jira_token_never_appears_in_logs(caplog, monkeypatch):
+    monkeypatch.setattr(config, "BEARER_TOKEN", "SECRET-TOKEN-123")
+    monkeypatch.setitem(config.SQUADS, "TEST", SQUAD)
+    with caplog.at_level("DEBUG"):
+        generate_report("TEST", search=fake_jira(sample_sprint(), []), today=datetime(2026, 9, 23))
+    assert "SECRET-TOKEN-123" not in caplog.text
+    assert "Report done" in caplog.text

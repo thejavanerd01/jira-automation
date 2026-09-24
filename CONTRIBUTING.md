@@ -10,6 +10,7 @@ dashboard.py        Streamlit page: layout, charts, narrative text, PPT button
 ppt_export.py       build_deck(ctx) → .pptx bytes (one _slide_* function per slide)
 jira_client.py      jira_search(jql) → all pages from /rest/api/2/search/
 config.py           squads, sprints, quarters, status names (+ .env loading)
+log_setup.py        logging to terminal + logs/squad-pulse.log, level from LOG_LEVEL
 report/             all the numbers
   __init__.py       generate_report(squad, sprint) — fetch → compute → return dict
   queries.py        every JQL string
@@ -35,12 +36,17 @@ and passes a `ppt_ctx` dict to `ppt_export.build_deck()`.
 3. Only `queries.py` builds JQL.
 4. `dashboard.py` never calls Jira. It only reads the dict from `generate_report()`.
 5. The dashboard and the PPT use the same computed values, so the screen and the deck always match.
+6. Log with `log = logging.getLogger(__name__)`, not `print()`. Use INFO for one
+   summary line per step, DEBUG for per-story detail, WARNING for bad data or
+   config, and `log.exception(...)` in an `except` block. Never log the token.
+   `log_setup.setup_logging()` is called once by each entry point (`dashboard.py`,
+   `report/__main__.py`, `report/diagnose.py`); don't call it from library code.
 
 ## Dev setup
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-python -m pytest -q            # 17 tests, under a second, no Jira needed
+python -m pytest -q            # 19 tests, under a second, no Jira needed
 ```
 
 Run the tests before and after every change.

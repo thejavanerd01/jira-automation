@@ -10,6 +10,7 @@ Quarterly burndown.
   Ideal         = straight line from scope to 0 at the last checkpoint
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -17,6 +18,8 @@ import pandas as pd
 
 import config
 from . import issues as iss
+
+log = logging.getLogger(__name__)
 
 
 def quarter_for(date_str):
@@ -84,6 +87,9 @@ def quarterly_burndown(squad, candidate_issues, sprint_end, today=None):
         })
 
     quarter_df = pd.DataFrame(rows, columns=["Week", "Ideal Remaining", "Remaining SP"])
+    log.info("Quarter %s: %d stories from %s, scope %s SP, delivered %s SP, as of %s",
+             label, len(quarter_issues), quarter_sprints, scope, sum(done_by_day.values()), as_of)
+    log.debug("Quarter weekly remaining: %s", dict(zip(quarter_df["Week"], quarter_df["Remaining SP"])))
     summary = {
         "label": label,
         "start": q_start,

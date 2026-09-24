@@ -9,6 +9,7 @@ Definitions (keep these in sync with README section 6):
   (stories that are not Done count toward committed only)
 """
 
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -17,6 +18,8 @@ import pandas as pd
 
 import config
 from . import issues as iss
+
+log = logging.getLogger(__name__)
 
 ISSUE_COLUMNS = ["Key", "Summary", "Assignee", "Status", "Story Points", "Created", "Resolved"]
 SPILLOVER_COLUMNS = ["Key", "Summary", "Assignee", "Story Points", "Resolved"]
@@ -47,6 +50,7 @@ def sprint_dates(squad, sprint, sprint_issues):
     """
     override = squad.get("sprint_dates", {}).get(sprint)
     if override:
+        log.info("Sprint '%s' dates from config.sprint_dates: %s → %s", sprint, override[0], override[1])
         return override[0], override[1]
 
     names_seen = set()
@@ -55,9 +59,15 @@ def sprint_dates(squad, sprint, sprint_issues):
             name, start, end = iss.parse_sprint(value)
             names_seen.add(name)
             if name and name.strip().casefold() == sprint.strip().casefold() and start and end:
+                log.info("Sprint '%s' dates from Jira (%s): %s → %s", sprint, issue["key"], start, end)
                 return start, end
 
-    raise Exception(_missing_dates_reason(sprint, sprint_issues, names_seen))
+    reason = _missing_dates_reason(sprint, sprint_issues, names_seen)
+    log.warning(reason)
+    if sprint_issues:
+        log.debug("Raw sprint field on %s: %s", sprint_issues[0]["key"],
+                  sprint_issues[0]["fields"].get(config.SPRINT_FIELD))
+    raise Exception(reason)
 
 
 def _missing_dates_reason(sprint, sprint_issues, names_seen):
@@ -97,14 +107,20 @@ def analyse_sprint(sprint_issues, sprint_end):
         })
 
         if not iss.is_done(issue):
+            log.debug("%-12s %4s SP  %-14s resolved=%-10s -> OPEN (counts toward committed only)",
+                      issue["key"], sp, iss.status_name(issue), iss.resolved_date(issue))
             continue
 
         day = iss.resolved_date(issue)
         if iss.to_date(day) <= end:
+            log.debug("%-12s %4s SP  %-14s resolved=%-10s -> DELIVERED (%s)",
+                      issue["key"], sp, iss.status_name(issue), day, who)
             result.delivered_sp += sp
             result.delivered_by_assignee[who] += sp
             result.delivered_by_day[day] += sp
         else:
+            log.debug("%-12s %4s SP  %-14s resolved=%-10s -> SPILLOVER (after %s)",
+                      issue["key"], sp, iss.status_name(issue), day, sprint_end)
             result.spillover_sp += sp
             result.spillover_count += 1
             result.spillover_rows.append({
@@ -115,6 +131,24 @@ def analyse_sprint(sprint_issues, sprint_end):
                 "Resolved": resolved,
             })
 
+    no_points = [i["key"] for i in sprint_issues if not iss.story_points(i)]
+    if no_points:
+        log.warning("%d stories have no story points (counted as 0): %s", len(no_points),
+                    ", ".join(no_points[:20]) + (" …" if len(no_points) > 20 else ""))
+    unresolved_done = [i["key"] for i in sprint_issues
+                       if iss.status_name(i) in config.DONE_STATUSES and not iss.resolved_date(i)]
+    if unresolved_done:
+        log.warning("%d stories are %s but have no resolution date, so they are not counted as "
+                    "delivered: %s", len(unresolved_done), "/".join(config.DONE_STATUSES),
+                    ", ".join(unresolved_done[:20]))
+    other_statuses = sorted({iss.status_name(i) for i in sprint_issues if iss.resolved_date(i)
+                             and iss.status_name(i) not in config.DONE_STATUSES})
+    if other_statuses:
+        log.warning("Resolved stories with statuses not in DONE_STATUSES (not counted as delivered): %s. "
+                    "Add them to DONE_STATUSES in config.py if they mean finished.", other_statuses)
+    log.info("Sprint: %d stories, committed %s SP, delivered %s SP, spillover %s SP (%d stories), "
+             "plan→done %s%%", len(sprint_issues), result.committed_sp, result.delivered_sp,
+             result.spillover_sp, result.spillover_count, result.commitment_pct)
     return result
 
 

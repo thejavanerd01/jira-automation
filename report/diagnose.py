@@ -14,10 +14,12 @@ Checks, in order:
 
 import contextlib
 import io
+import logging
 import sys
 
 import config
 from jira_client import jira_get, jira_search
+from log_setup import setup_logging
 from report import issues as iss
 from report import queries
 
@@ -128,6 +130,8 @@ def check_sprint_dates(squad, sprint, stories):
 
 
 def main():
+    # Full detail goes to the log file; the terminal shows only this report + warnings.
+    setup_logging(console_level=logging.WARNING)
     squad_name = sys.argv[1] if len(sys.argv) > 1 else next(iter(config.SQUADS))
     squad = config.SQUADS[squad_name]
     sprint = sys.argv[2] if len(sys.argv) > 2 else squad["sprints"][-1]

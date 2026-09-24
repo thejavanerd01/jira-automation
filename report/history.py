@@ -9,9 +9,13 @@ Definitions:
                               (a carried-over story counts in each sprint it was in)
 """
 
+import logging
+
 import pandas as pd
 
 from . import issues as iss
+
+log = logging.getLogger(__name__)
 
 
 def previous_sprints(all_sprints, selected, how_many):
@@ -27,7 +31,9 @@ def velocity_by_sprint(done_issues, sprints):
         for name in reversed(iss.sprint_names(issue)):          # most recent sprint first
             if name in velocity:
                 velocity[name] += iss.story_points(issue)
+                log.debug("%-12s %4s SP -> velocity of %s", issue["key"], iss.story_points(issue), name)
                 break
+    log.info("History velocity: %s", velocity or "no previous sprints")
     return velocity
 
 
@@ -38,6 +44,7 @@ def committed_by_sprint(all_issues, sprints):
         for name in iss.sprint_names(issue):
             if name in committed:
                 committed[name] += iss.story_points(issue)
+    log.info("History committed: %s", committed or "no previous sprints")
     return committed
 
 
