@@ -15,6 +15,7 @@ from datetime import timedelta
 
 import pandas as pd
 
+import config
 from . import issues as iss
 
 ISSUE_COLUMNS = ["Key", "Summary", "Assignee", "Status", "Story Points", "Created", "Resolved"]
@@ -48,16 +49,29 @@ def sprint_dates(squad, sprint, sprint_issues):
     if override:
         return override[0], override[1]
 
+    names_seen = set()
     for issue in sprint_issues:
-        for text in iss.sprint_strings(issue):
-            name, start, end = iss.parse_sprint(text)
-            if name == sprint and start and end:
+        for value in iss.sprint_strings(issue):
+            name, start, end = iss.parse_sprint(value)
+            names_seen.add(name)
+            if name and name.strip().casefold() == sprint.strip().casefold() and start and end:
                 return start, end
 
-    raise Exception(
-        f"Could not find start/end dates for sprint '{sprint}' in Jira. "
-        f"Add them under sprint_dates in config.py."
-    )
+    raise Exception(_missing_dates_reason(sprint, sprint_issues, names_seen))
+
+
+def _missing_dates_reason(sprint, sprint_issues, names_seen):
+    """Explain why no dates were found, so the fix is obvious."""
+    tip = "Run  python -m report.diagnose <SQUAD>  to check the setup."
+    if not sprint_issues:
+        return (f"Jira returned 0 stories for sprint '{sprint}'. Check that the sprint name in "
+                f"config.py matches Jira exactly and that 'members' are Jira usernames. {tip}")
+    if not any(iss.sprint_strings(i) for i in sprint_issues):
+        return (f"Jira returned {len(sprint_issues)} stories but none has the sprint field "
+                f"'{config.SPRINT_FIELD}'. SPRINT_FIELD in .env is probably the wrong custom field id. {tip}")
+    return (f"No start/end dates for sprint '{sprint}' on its stories. Sprint names found: "
+            f"{sorted(n for n in names_seen if n)}. If the sprint has no dates in Jira, add them "
+            f"under sprint_dates in config.py. {tip}")
 
 
 def analyse_sprint(sprint_issues, sprint_end):

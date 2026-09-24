@@ -75,8 +75,21 @@ def test_sprint_dates_from_jira_or_config_override():
     assert sprint.sprint_dates(SQUAD, "CST1 Q3-S5", sample_sprint()) == ("2026-09-08", "2026-09-19")
     squad = {**SQUAD, "sprint_dates": {"CST1 Q3-S5": ["2026-09-09", "2026-09-20"]}}
     assert sprint.sprint_dates(squad, "CST1 Q3-S5", []) == ("2026-09-09", "2026-09-20")
-    with pytest.raises(Exception, match="Could not find start/end dates"):
+
+
+def test_missing_sprint_dates_explain_the_cause():
+    with pytest.raises(Exception, match="Jira returned 0 stories"):
         sprint.sprint_dates(SQUAD, "CST1 Q3-S5", [])
+    no_field = story("A")
+    no_field["fields"][config.SPRINT_FIELD] = None
+    with pytest.raises(Exception, match="SPRINT_FIELD .* wrong custom field id"):
+        sprint.sprint_dates(SQUAD, "CST1 Q3-S5", [no_field])
+    with pytest.raises(Exception, match="Sprint names found: \\['CST1 Q3-S4'\\]"):
+        sprint.sprint_dates(SQUAD, "CST1 Q3-S5", [story("B", sprints=(S4,))])
+
+
+def test_sprint_name_match_ignores_case_and_spaces():
+    assert sprint.sprint_dates(SQUAD, " cst1 q3-s5 ", sample_sprint()) == ("2026-09-08", "2026-09-19")
 
 
 # ── history.py ───────────────────────────────────────────────────────────────

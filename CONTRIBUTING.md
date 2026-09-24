@@ -19,6 +19,7 @@ report/             all the numbers
   backlog.py        backlog readiness and coverage
   quarter.py        quarterly burndown
   __main__.py       python -m report CST1  (prints the summary, no UI)
+  diagnose.py       python -m report.diagnose CST1  (checks the Jira setup)
 tests/
   factory.py        story(...) builds a fake Jira issue
   test_report.py    unit tests + an end-to-end test with a fake Jira
@@ -39,7 +40,7 @@ and passes a `ppt_ctx` dict to `ppt_export.build_deck()`.
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-python -m pytest -q            # 14 tests, under a second, no Jira needed
+python -m pytest -q            # 17 tests, under a second, no Jira needed
 ```
 
 Run the tests before and after every change.

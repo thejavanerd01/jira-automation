@@ -144,7 +144,17 @@ Spillover Stories   2.00
      Commitment %  86.67
 ```
 
-If you get an error instead, see section 9.
+If you get an error instead, run the setup check. It tests each part against
+your Jira and tells you what to fix:
+
+```bash
+python -m report.diagnose CST1
+```
+
+It checks the connection, looks up the correct `STORY_POINTS_FIELD` /
+`SPRINT_FIELD` ids, confirms the sprint name (and lists the real names if yours
+doesn't match), compares `members` with the sprint's actual assignees, and shows
+the raw sprint field with the dates it read. See also section 9.
 
 ### 4.2 Start the dashboard
 
@@ -292,7 +302,9 @@ Team changes: update `members` for the squad.
 | `SSL: CERTIFICATE_VERIFY_FAILED` | Jira uses an internal certificate. Export your corporate root CA to a `.pem` file and set `JIRA_CA_BUNDLE` |
 | `getaddrinfo failed` / connection timed out | This machine can't reach `JIRA_HOST` (VPN, firewall, or a proxy is needed) |
 | All story points are 0 | `STORY_POINTS_FIELD` is wrong. Check `/rest/api/2/field` |
-| `Could not find start/end dates for sprint` | That sprint has no dates in Jira, or `SPRINT_FIELD` is wrong. Fix the field ID or add `sprint_dates` for that sprint in `config.py` |
+| `Jira returned 0 stories for sprint …` | The sprint name doesn't match Jira exactly, or `members` aren't Jira usernames. Run `python -m report.diagnose <SQUAD>` |
+| `… none has the sprint field …` | `SPRINT_FIELD` is the wrong custom field id. `python -m report.diagnose <SQUAD>` prints the right one |
+| `No start/end dates for sprint …` | The sprint has no dates in Jira. Add them under `sprint_dates` for that squad in `config.py` |
 | Velocity looks too low | Your finished status isn't `Done`. Add its name to `DONE_STATUSES` in `config.py` |
 | Backlog donut is empty | `backlog_filter` matches nothing. Test it in Jira's issue search first |
 | Everything is "Needs refinement" | Add your ready status names to `BACKLOG_READY_STATUSES` |
